@@ -10,7 +10,6 @@ public class FakeDataGenerator {
     static String[] currencies = {"INR", "USD", "EUR", "GBP"};
     static String[] transactionTypes = {"TRANSFER", "WITHDRAW", "DEPOSIT", "PAYMENT"};
     static String[] channels = {"MOBILE", "ATM", "CARD", "NETBANKING"};
-    static String[] statusList = {"SUCCESS", "FAILED", "PENDING"};
     static String[] locations = {"Mumbai", "Hyderabad", "Bangalore", "Delhi", "Pune", "Chennai"};
 
     public static String randomAccount() {
@@ -35,7 +34,7 @@ public class FakeDataGenerator {
 
     public static Transaction generateTransaction() {
         return new Transaction(
-                "TXN" + System.currentTimeMillis() + random.nextInt(9999),
+                "TXN" + System.currentTimeMillis(),
                 randomDateTime(),
                 currencies[random.nextInt(currencies.length)],
                 Math.round((100 + random.nextDouble() * 90000) * 100.0) / 100.0,
@@ -43,9 +42,10 @@ public class FakeDataGenerator {
                 randomAccount(),
                 transactionTypes[random.nextInt(transactionTypes.length)],
                 channels[random.nextInt(channels.length)],
-                statusList[random.nextInt(statusList.length)],
+                null, // ❗ STATUS decided by service
                 randomIP(),
                 locations[random.nextInt(locations.length)]
         );
     }
+
 }

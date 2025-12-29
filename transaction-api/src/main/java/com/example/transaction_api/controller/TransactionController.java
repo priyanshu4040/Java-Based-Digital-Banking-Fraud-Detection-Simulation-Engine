@@ -24,18 +24,14 @@ public class TransactionController {
             @Valid @RequestBody Transaction transaction,
             BindingResult result) {
 
-        // ❌ Priority 1 – Invalid data → reject
         if (result.hasErrors()) {
             return ResponseEntity.badRequest().body(result.getAllErrors());
         }
 
-        // ⚠ Priority 2 – Rule-based flagging
-        String fraudMsg = service.checkFraudRules(transaction);
-
-        service.saveTransaction(transaction);
+        service.processTransaction(transaction);
 
         return ResponseEntity.ok(
-                "Transaction saved successfully. " + fraudMsg
+                "Transaction saved. Status = " + transaction.getStatus()
         );
     }
 
@@ -47,6 +43,21 @@ public class TransactionController {
     @GetMapping("/fraud")
     public ResponseEntity<List<Transaction>> getFraudTransactions() {
         return ResponseEntity.ok(service.getFraudTransactions());
+    }
+
+    @GetMapping("/success")
+    public ResponseEntity<List<Transaction>> getSuccessTransactions() {
+        return ResponseEntity.ok(service.getSuccessTransactions());
+    }
+
+    @GetMapping("/failed")
+    public ResponseEntity<List<Transaction>> getFailedTransactions() {
+        return ResponseEntity.ok(service.getFailedTransactions());
+    }
+
+    @GetMapping("/pending")
+    public ResponseEntity<List<Transaction>> getPendingTransactions() {
+        return ResponseEntity.ok(service.getPendingTransactions());
     }
 
 

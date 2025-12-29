@@ -22,24 +22,24 @@ public class TransactionRepository {
         String sql = """
         INSERT INTO TRANSACTIONS
         (TRANSACTION_ID, TIMESTAMP_VAL, CURRENCY, AMOUNT, SENDER_ACCOUNT,
-         RECEIVER_ACCOUNT, TRANSACTION_TYPE, CHANNEL, STATUS, IP_ADDRESS,
-         LOCATION, FRAUD_FLAG, FRAUD_REASON)
+         RECEIVER_ACCOUNT, TRANSACTION_TYPE, CHANNEL, STATUS,
+         IP_ADDRESS, LOCATION, FRAUD_FLAG, FRAUD_REASON)
         VALUES (?, SYSDATE, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """;
+        """;
 
         jdbc.update(sql,
-                t.getTransactionId(),      // 1
-                t.getCurrency(),           // 2
-                t.getAmount(),             // 3
-                t.getSenderAccount(),      // 4
-                t.getReceiverAccount(),    // 5
-                t.getTransactionType(),    // 6
-                t.getChannel(),            // 7
-                t.getStatus(),             // 8
-                t.getIpAddress(),          // 9
-                t.getLocation(),           // 10
-                t.isFraudFlag() ? 1 : 0,   // 11 (NUMBER(1))
-                t.getFraudReason()         // 12
+                t.getTransactionId(),
+                t.getCurrency(),
+                t.getAmount(),
+                t.getSenderAccount(),
+                t.getReceiverAccount(),
+                t.getTransactionType(),
+                t.getChannel(),
+                t.getStatus(),
+                t.getIpAddress(),
+                t.getLocation(),
+                t.isFraudFlag() ? 1 : 0,
+                t.getFraudReason()
         );
     }
 
@@ -76,17 +76,10 @@ public class TransactionRepository {
         String sql = """
         SELECT * FROM TRANSACTIONS
         WHERE FRAUD_FLAG = 1
+        ORDER BY TIMESTAMP_VAL DESC
     """;
 
-        return jdbc.query(sql, (rs, rowNum) -> {
-            Transaction t = new Transaction();
-            t.setTransactionId(rs.getString("TRANSACTION_ID"));
-            t.setAmount(rs.getDouble("AMOUNT"));
-            t.setCurrency(rs.getString("CURRENCY"));
-            t.setFraudFlag(rs.getBoolean("FRAUD_FLAG"));
-            t.setFraudReason(rs.getString("FRAUD_REASON"));
-            return t;
-        });
+        return jdbc.query(sql, transactionRowMapper());
     }
 
     public int countRecentTransactions(String senderAccount) {
@@ -123,6 +116,17 @@ public class TransactionRepository {
 
         return jdbc.queryForObject(sql, Integer.class, senderAccount);
     }
+
+    public List<Transaction> findByStatus(String status) {
+
+        String sql = """
+        SELECT * FROM TRANSACTIONS
+        WHERE STATUS = ?
+    """;
+
+        return jdbc.query(sql, transactionRowMapper(), status);
+    }
+
 
 
 

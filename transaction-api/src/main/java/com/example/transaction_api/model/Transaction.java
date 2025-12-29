@@ -13,8 +13,11 @@ public class Transaction {
     @Pattern(regexp = "INR|USD|EUR|GBP", message = "Invalid currency")
     private String currency;
 
-    @Positive
-    private double amount;
+
+    @NotNull
+    private Double amount;
+
+
 
     @NotBlank
     private String senderAccount;

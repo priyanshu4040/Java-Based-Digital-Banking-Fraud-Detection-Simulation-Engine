@@ -15,65 +15,62 @@ public class TransactionService {
         this.repository = repository;
     }
 
-    public String checkFraudRules(Transaction txn) {
+    public void processTransaction(Transaction txn) {
 
+        if (txn.getAmount() <= 0) {
+            txn.setStatus("FAILED");
+            txn.setFraudFlag(false);
+            txn.setFraudReason("Invalid amount");
+            repository.insertTransaction(txn);
+            return;
+        }
+
+        if (txn.getSenderAccount().equals(txn.getReceiverAccount())) {
+            txn.setStatus("FAILED");
+            txn.setFraudFlag(false);
+            txn.setFraudReason("Sender and receiver same");
+            repository.insertTransaction(txn);
+            return;
+        }
+
+        // FRAUD SIGNALS (Allow but flag)
         StringBuilder alerts = new StringBuilder();
 
-        // Rule 1: High amount
-        if (txn.getAmount() > 50000) {
+        if (txn.getAmount() > 100000) {
             alerts.append("High amount. ");
         }
 
-        // Rule 2: Suspicious IP
         if (txn.getIpAddress() != null && txn.getIpAddress().startsWith("172.")) {
             alerts.append("Suspicious IP. ");
         }
 
-        // Rule 3: Velocity check
-        int recentTxnCount =
-                repository.countRecentTransactions(txn.getSenderAccount());
-
-        if (recentTxnCount >= 3) {
+        int velocity = repository.countRecentTransactions(txn.getSenderAccount());
+        if (velocity >= 3) {
             alerts.append("High transaction velocity. ");
         }
 
-        // 🔹 Rule 4: Rapid amount change
-        Double avgAmount =
-                repository.avgAmountLast5Min(txn.getSenderAccount());
-
-        if (avgAmount != null && avgAmount > 0 &&
-                txn.getAmount() > avgAmount * 3) {
-
+        Double avg = repository.avgAmountLast5Min(txn.getSenderAccount());
+        if (avg != null && avg > 0 && txn.getAmount() > avg * 3) {
             alerts.append("Rapid amount spike. ");
         }
 
-        // 🔹 Rule 5: Failed txns before success
-        if ("SUCCESS".equalsIgnoreCase(txn.getStatus())) {
-
-            int failedCount =
-                    repository.countRecentFailedTxns(txn.getSenderAccount());
-
-            if (failedCount >= 2) {
-                alerts.append("Multiple failed attempts before success. ");
-            }
+        int failedAttempts =
+                repository.countRecentFailedTxns(txn.getSenderAccount());
+        if (failedAttempts >= 2) {
+            alerts.append("Multiple failed attempts before success. ");
         }
 
-        // ⚠ Allow but flag (ML will decide final verdict)
+        // 🟡 Decision
         if (!alerts.isEmpty()) {
+            txn.setStatus("PENDING");
             txn.setFraudFlag(true);
             txn.setFraudReason(alerts.toString());
-            return alerts.toString();
+        } else {
+            txn.setStatus("SUCCESS");
+            txn.setFraudFlag(false);
+            txn.setFraudReason("NONE");
         }
 
-        txn.setFraudFlag(false);
-        txn.setFraudReason("NONE");
-        return "No fraud detected";
-    }
-
-
-
-
-    public void saveTransaction(Transaction txn) {
         repository.insertTransaction(txn);
     }
 
@@ -85,4 +82,17 @@ public class TransactionService {
         return repository.findFraudTransactions();
     }
 
+    public List<Transaction> getSuccessTransactions() {
+        return repository.findByStatus("SUCCESS");
+    }
+
+    public List<Transaction> getFailedTransactions() {
+        return repository.findByStatus("FAILED");
+    }
+
+    public List<Transaction> getPendingTransactions() {
+        return repository.findByStatus("PENDING");
+    }
+
 }
+
