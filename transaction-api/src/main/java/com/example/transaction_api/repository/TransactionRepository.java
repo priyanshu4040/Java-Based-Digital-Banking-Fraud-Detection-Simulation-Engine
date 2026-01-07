@@ -5,6 +5,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -23,12 +25,21 @@ public class TransactionRepository {
         INSERT INTO TRANSACTIONS
         (TRANSACTION_ID, TIMESTAMP_VAL, CURRENCY, AMOUNT, SENDER_ACCOUNT,
          RECEIVER_ACCOUNT, TRANSACTION_TYPE, CHANNEL, STATUS,
-         IP_ADDRESS, LOCATION, FRAUD_FLAG, FRAUD_REASON)
-        VALUES (?, SYSDATE, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         IP_ADDRESS, LOCATION, FRAUD_FLAG, FRAUD_REASON, ML_SCORE)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
+
+        // Convert LocalDateTime to Timestamp for Oracle
+        Timestamp timestamp = null;
+        if (t.getTimestamp() != null) {
+            timestamp = Timestamp.valueOf(t.getTimestamp());
+        } else {
+            timestamp = new Timestamp(System.currentTimeMillis());
+        }
 
         jdbc.update(sql,
                 t.getTransactionId(),
+                timestamp,
                 t.getCurrency(),
                 t.getAmount(),
                 t.getSenderAccount(),
@@ -38,8 +49,9 @@ public class TransactionRepository {
                 t.getStatus(),
                 t.getIpAddress(),
                 t.getLocation(),
-                t.isFraudFlag() ? 1 : 0,
-                t.getFraudReason()
+                t.getFraudFlag() != null ? t.getFraudFlag() : 0,
+                t.getFraudReason(),
+                t.getMlScore() != null ? t.getMlScore() : 0.0
         );
     }
 
@@ -55,7 +67,13 @@ public class TransactionRepository {
         return (rs, rowNum) -> {
             Transaction t = new Transaction();
             t.setTransactionId(rs.getString("TRANSACTION_ID"));
-            t.setTimestamp(rs.getString("TIMESTAMP_VAL"));
+
+            // Convert Oracle TIMESTAMP to LocalDateTime
+            Timestamp timestamp = rs.getTimestamp("TIMESTAMP_VAL");
+            if (timestamp != null) {
+                t.setTimestamp(timestamp.toLocalDateTime());
+            }
+
             t.setCurrency(rs.getString("CURRENCY"));
             t.setAmount(rs.getDouble("AMOUNT"));
             t.setSenderAccount(rs.getString("SENDER_ACCOUNT"));
@@ -65,8 +83,19 @@ public class TransactionRepository {
             t.setStatus(rs.getString("STATUS"));
             t.setIpAddress(rs.getString("IP_ADDRESS"));
             t.setLocation(rs.getString("LOCATION"));
-            t.setFraudFlag(rs.getBoolean("FRAUD_FLAG"));
+            t.setFraudFlag(rs.getInt("FRAUD_FLAG"));
             t.setFraudReason(rs.getString("FRAUD_REASON"));
+
+            // Set ML score if column exists (might be null)
+            try {
+                Double mlScore = rs.getDouble("ML_SCORE");
+                if (!rs.wasNull()) {
+                    t.setMlScore(mlScore);
+                }
+            } catch (Exception e) {
+                // Column doesn't exist yet - ignore
+            }
+
             return t;
         };
     }

@@ -8,4 +8,4 @@ public class TransactionApiApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(TransactionApiApplication.class, args);
 	}
-}
+}	

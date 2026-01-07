@@ -7,7 +7,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/transactions")
@@ -24,16 +26,47 @@ public class TransactionController {
             @Valid @RequestBody Transaction transaction,
             BindingResult result) {
 
+        // Log incoming request for debugging
+        org.slf4j.LoggerFactory.getLogger(TransactionController.class)
+            .info("Received transaction: {}", transaction.getTransactionId());
+
+        // Check for validation errors (from @Valid annotation)
         if (result.hasErrors()) {
-            return ResponseEntity.badRequest().body(result.getAllErrors());
+            Map<String, Object> errorResponse = new HashMap<>();
+            Map<String, String> fieldErrors = new HashMap<>();
+
+            result.getFieldErrors().forEach(error -> {
+                fieldErrors.put(error.getField(), error.getDefaultMessage());
+            });
+
+            errorResponse.put("error", "Validation failed");
+            errorResponse.put("status", 400);
+            errorResponse.put("message", "Request validation errors");
+            errorResponse.put("errors", fieldErrors);
+
+            return ResponseEntity.badRequest().body(errorResponse);
         }
 
-        service.processTransaction(transaction);
+        try {
+            service.processTransaction(transaction);
 
-        return ResponseEntity.ok(
-                "Transaction saved. Status = " + transaction.getStatus()
-        );
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Transaction saved successfully");
+            response.put("transactionId", transaction.getTransactionId());
+            response.put("status", transaction.getStatus());
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Failed to process transaction");
+            errorResponse.put("status", 500);
+            errorResponse.put("message", e.getMessage());
+
+            return ResponseEntity.status(500).body(errorResponse);
+        }
     }
+
 
     @GetMapping
     public ResponseEntity<?> getAllTransactions() {
