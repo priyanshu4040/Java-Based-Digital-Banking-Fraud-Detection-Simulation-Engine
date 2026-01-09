@@ -119,6 +119,10 @@ public class TransactionService {
                 txn.setFraudReason(txn.getFraudReason() + " ML_HIGH_RISK.");
             }
         }
+        else {
+            txn.setStatus("SUCCESS");
+            txn.setFraudFlag(0);
+        }
 
         /* ================= SAVE ================= */
 
