@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import TransactionForm from "@/components/TransactionForm";
+import AutoTransactionGenerator from "@/components/AutoTransactionGenerator";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { Shield, History } from "lucide-react";
 
 const TransactionGeneration = () => {
@@ -34,9 +36,20 @@ const TransactionGeneration = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 sm:px-6 py-6">
-        <section className="animate-fade-in">
-          <TransactionForm />
-        </section>
+        <div className="space-y-8">
+          {/* Manual Transaction Form Section */}
+          <section className="animate-fade-in">
+            <TransactionForm />
+          </section>
+
+          {/* Separator */}
+          <Separator className="my-8" />
+
+          {/* Auto Generate Section */}
+          <section className="animate-fade-in" style={{ animationDelay: "100ms" }}>
+            <AutoTransactionGenerator />
+          </section>
+        </div>
       </main>
     </div>
   );
