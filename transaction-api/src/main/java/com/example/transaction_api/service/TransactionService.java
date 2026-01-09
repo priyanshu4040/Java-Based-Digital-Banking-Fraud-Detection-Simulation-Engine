@@ -109,7 +109,7 @@ public class TransactionService {
         txn.setMlScore(mlScore);
 
         // ML can only UPGRADE risk (never downgrade)
-        if (mlScore >= 0.7 && !"FAILED".equals(txn.getStatus())) {
+        if (mlScore >= 0.8 && !"FAILED".equals(txn.getStatus())) {
             txn.setStatus("FAILED");
             txn.setFraudFlag(1);
 
@@ -118,8 +118,7 @@ public class TransactionService {
             } else {
                 txn.setFraudReason(txn.getFraudReason() + " ML_HIGH_RISK.");
             }
-        }
-        else {
+        } else {
             txn.setStatus("SUCCESS");
             txn.setFraudFlag(0);
         }
