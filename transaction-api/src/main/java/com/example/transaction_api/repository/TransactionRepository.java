@@ -1,11 +1,16 @@
 package com.example.transaction_api.repository;
 
+import com.example.transaction_api.model.ChannelWiseFraud;
+import com.example.transaction_api.model.FraudTrend;
+import com.example.transaction_api.model.LocationWiseFraud;
 import com.example.transaction_api.model.Transaction;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -156,7 +161,84 @@ public class TransactionRepository {
         return jdbc.query(sql, transactionRowMapper(), status);
     }
 
+    /* ================= DASHBOARD QUERIES ================= */
 
+    public long countTotalTransactions() {
+        String sql = "SELECT COUNT(*) FROM TRANSACTIONS";
+        Long count = jdbc.queryForObject(sql, Long.class);
+        return count != null ? count : 0L;
+    }
 
+    public long countFraudTransactions() {
+        String sql = "SELECT COUNT(*) FROM TRANSACTIONS WHERE FRAUD_FLAG = 1";
+        Long count = jdbc.queryForObject(sql, Long.class);
+        return count != null ? count : 0L;
+    }
+
+    public long countTransactionsByStatus(String status) {
+        String sql = "SELECT COUNT(*) FROM TRANSACTIONS WHERE STATUS = ?";
+        Long count = jdbc.queryForObject(sql, Long.class, status);
+        return count != null ? count : 0L;
+    }
+
+    public List<FraudTrend> getFraudTrends() {
+        String sql = """
+            SELECT TRUNC(TIMESTAMP_VAL) AS TRANSACTION_DATE, COUNT(*) AS FRAUD_COUNT
+            FROM TRANSACTIONS
+            WHERE FRAUD_FLAG = 1
+            GROUP BY TRUNC(TIMESTAMP_VAL)
+            ORDER BY TRANSACTION_DATE DESC
+        """;
+
+        return jdbc.query(sql, (rs, rowNum) -> {
+            Date date = rs.getDate("TRANSACTION_DATE");
+            LocalDate localDate = date != null ? date.toLocalDate() : LocalDate.now();
+            long fraudCount = rs.getLong("FRAUD_COUNT");
+            return new FraudTrend(localDate, fraudCount);
+        });
+    }
+
+    public List<ChannelWiseFraud> getChannelWiseFraud() {
+        String sql = """
+            SELECT
+                CHANNEL,
+                SUM(CASE WHEN FRAUD_FLAG = 1 THEN 1 ELSE 0 END) AS FRAUD_COUNT,
+                SUM(CASE WHEN FRAUD_FLAG = 0 THEN 1 ELSE 0 END) AS NON_FRAUD_COUNT,
+                COUNT(*) AS TOTAL_COUNT
+            FROM TRANSACTIONS
+            WHERE CHANNEL IS NOT NULL
+            GROUP BY CHANNEL
+            ORDER BY FRAUD_COUNT DESC
+        """;
+
+        return jdbc.query(sql, (rs, rowNum) -> {
+            String channel = rs.getString("CHANNEL");
+            long fraudCount = rs.getLong("FRAUD_COUNT");
+            long nonFraudCount = rs.getLong("NON_FRAUD_COUNT");
+            long totalCount = rs.getLong("TOTAL_COUNT");
+            return new ChannelWiseFraud(channel, fraudCount, nonFraudCount, totalCount);
+        });
+    }
+
+    public List<LocationWiseFraud> getLocationWiseFraud() {
+        String sql = """
+            SELECT
+                LOCATION,
+                SUM(CASE WHEN FRAUD_FLAG = 1 THEN 1 ELSE 0 END) AS FRAUD_COUNT,
+                COUNT(*) AS TOTAL_TRANSACTIONS
+            FROM TRANSACTIONS
+            WHERE LOCATION IS NOT NULL
+            GROUP BY LOCATION
+            HAVING SUM(CASE WHEN FRAUD_FLAG = 1 THEN 1 ELSE 0 END) > 0
+            ORDER BY FRAUD_COUNT DESC
+        """;
+
+        return jdbc.query(sql, (rs, rowNum) -> {
+            String location = rs.getString("LOCATION");
+            long fraudCount = rs.getLong("FRAUD_COUNT");
+            long totalTransactions = rs.getLong("TOTAL_TRANSACTIONS");
+            return new LocationWiseFraud(location, fraudCount, totalTransactions);
+        });
+    }
 
 }

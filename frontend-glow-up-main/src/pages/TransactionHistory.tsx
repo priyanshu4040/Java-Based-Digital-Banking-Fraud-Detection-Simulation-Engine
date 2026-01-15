@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   CalendarIcon,
   Plus,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -192,6 +193,15 @@ const TransactionHistory = () => {
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   New Transaction
+                </Button>
+              </Link>
+              <Link to="/dashboard">
+                <Button
+                  variant="secondary"
+                  className="bg-white/10 hover:bg-white/20 text-white border-0 backdrop-blur-sm"
+                >
+                  <TrendingUp className="w-4 h-4 mr-2" />
+                  Dashboard
                 </Button>
               </Link>
               <Button

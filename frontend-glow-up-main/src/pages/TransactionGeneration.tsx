@@ -3,7 +3,7 @@ import TransactionForm from "@/components/TransactionForm";
 import AutoTransactionGenerator from "@/components/AutoTransactionGenerator";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Shield, History } from "lucide-react";
+import { Shield, History, BarChart3 } from "lucide-react";
 
 const TransactionGeneration = () => {
   return (
@@ -21,15 +21,26 @@ const TransactionGeneration = () => {
                 <p className="text-sm text-white/70">Submit new transactions for fraud detection</p>
               </div>
             </div>
-            <Link to="/history">
-              <Button
-                variant="secondary"
-                className="bg-white/10 hover:bg-white/20 text-white border-0 backdrop-blur-sm"
-              >
-                <History className="w-4 h-4 mr-2" />
-                View History
-              </Button>
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link to="/dashboard">
+                <Button
+                  variant="secondary"
+                  className="bg-white/10 hover:bg-white/20 text-white border-0 backdrop-blur-sm"
+                >
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  Dashboard
+                </Button>
+              </Link>
+              <Link to="/history">
+                <Button
+                  variant="secondary"
+                  className="bg-white/10 hover:bg-white/20 text-white border-0 backdrop-blur-sm"
+                >
+                  <History className="w-4 h-4 mr-2" />
+                  View History
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </header>

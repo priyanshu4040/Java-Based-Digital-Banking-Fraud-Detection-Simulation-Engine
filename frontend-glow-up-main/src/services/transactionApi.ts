@@ -231,3 +231,139 @@ export const getPendingTransactions = async (): Promise<ApiResponse<Transaction[
   }
 };
 
+/* ================= DASHBOARD APIs ================= */
+
+export interface DashboardSummary {
+  totalTransactions: number;
+  fraudTransactions: number;
+  successTransactions: number;
+  failedTransactions: number;
+  pendingTransactions: number;
+  fraudPercentage: number;
+}
+
+export interface FraudTrend {
+  date: string;
+  fraudCount: number;
+}
+
+export interface ChannelWiseFraud {
+  channel: string;
+  fraudCount: number;
+  nonFraudCount: number;
+  totalCount: number;
+}
+
+export interface LocationWiseFraud {
+  location: string;
+  fraudCount: number;
+  totalTransactions: number;
+}
+
+/**
+ * Get dashboard summary
+ */
+export const getDashboardSummary = async (): Promise<ApiResponse<DashboardSummary>> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/dashboard/summary`);
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: `HTTP ${response.status}: ${response.statusText}`,
+      };
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      data: data,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch dashboard summary',
+    };
+  }
+};
+
+/**
+ * Get fraud trends
+ */
+export const getFraudTrends = async (): Promise<ApiResponse<FraudTrend[]>> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/dashboard/fraud-trends`);
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: `HTTP ${response.status}: ${response.statusText}`,
+      };
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      data: Array.isArray(data) ? data : [],
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch fraud trends',
+    };
+  }
+};
+
+/**
+ * Get channel-wise fraud data
+ */
+export const getChannelWiseFraud = async (): Promise<ApiResponse<ChannelWiseFraud[]>> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/dashboard/channel-wise`);
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: `HTTP ${response.status}: ${response.statusText}`,
+      };
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      data: Array.isArray(data) ? data : [],
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch channel-wise fraud data',
+    };
+  }
+};
+
+/**
+ * Get location-wise fraud data
+ */
+export const getLocationWiseFraud = async (): Promise<ApiResponse<LocationWiseFraud[]>> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/dashboard/location-wise`);
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: `HTTP ${response.status}: ${response.statusText}`,
+      };
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      data: Array.isArray(data) ? data : [],
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch location-wise fraud data',
+    };
+  }
+};
