@@ -82,20 +82,18 @@ const generateFakeTransaction = (index: number, total: number): Omit<Transaction
 
   const timestampStr = transactionDate.toISOString().slice(0, 19).replace('T', ' ');
 
-  // Generate accounts - suspicious transactions might reuse same sender
+  // Generate accounts - use unique accounts to avoid blocking during testing
+  // Note: Account reuse is disabled to prevent account blocking from interfering with test data generation
   let senderAccount: string;
   let receiverAccount: string;
 
-  if (isSuspicious && index > 0 && Math.random() < 0.3) {
-    // Reuse a sender account from previous transactions (simulating repeated transactions)
-    const prefix = accountPrefixes[Math.floor(Math.random() * accountPrefixes.length)];
-    const accountNum = Math.floor(Math.random() * 5) + 1; // 1-5 for reuse pattern
-    senderAccount = `${prefix}${String(accountNum).padStart(8, '0')}`;
-  } else {
-    const prefix = accountPrefixes[Math.floor(Math.random() * accountPrefixes.length)];
-    const accountNum = Math.floor(Math.random() * 90000000) + 10000000; // 8-digit number: 10000000 to 99999999
-    senderAccount = `${prefix}${String(accountNum)}`;
-  }
+  // Always generate unique sender accounts to prevent blocking during batch generation
+  // This ensures test transactions don't get blocked due to multiple failures
+  const prefix = accountPrefixes[Math.floor(Math.random() * accountPrefixes.length)];
+  // Use timestamp + index + random to ensure uniqueness across batch generation
+  const uniqueId = timestamp + index * 1000 + Math.floor(Math.random() * 1000);
+  const accountNum = (uniqueId % 90000000) + 10000000; // Ensure 8-digit number
+  senderAccount = `${prefix}${String(accountNum)}`;
 
   // Generate receiver account, ensuring it's different from sender
   let attempts = 0;

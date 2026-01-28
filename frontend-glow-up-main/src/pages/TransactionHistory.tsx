@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import TransactionTable from "@/components/TransactionTable";
 import StatCard from "@/components/StatCard";
-import { Button } from "@/components/ui/button";
+import AppNavbar from "@/components/layout/AppNavbar";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, subMonths, isAfter, isBefore } from "date-fns";
 import {
-  Shield,
+  FileText,
   RefreshCw,
   BarChart3,
   CheckCircle2,
@@ -172,52 +171,8 @@ const TransactionHistory = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="gradient-header sticky top-0 z-10">
-        <div className="container mx-auto px-4 sm:px-6 py-5">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-white/10 rounded-xl backdrop-blur-sm">
-                <Shield className="w-7 h-7" />
-              </div>
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold">Transaction History</h1>
-                <p className="text-sm text-white/70">Monitor and analyze financial transactions</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <Link to="/">
-                <Button
-                  variant="secondary"
-                  className="bg-white/10 hover:bg-white/20 text-white border-0 backdrop-blur-sm"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Transaction
-                </Button>
-              </Link>
-              <Link to="/dashboard">
-                <Button
-                  variant="secondary"
-                  className="bg-white/10 hover:bg-white/20 text-white border-0 backdrop-blur-sm"
-                >
-                  <TrendingUp className="w-4 h-4 mr-2" />
-                  Dashboard
-                </Button>
-              </Link>
-              <Button
-                onClick={handleRefresh}
-                variant="secondary"
-                className="bg-white/10 hover:bg-white/20 text-white border-0 backdrop-blur-sm"
-              >
-                <RefreshCw className={cn("w-4 h-4 mr-2", loading && "animate-spin")} />
-                Refresh
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <AppNavbar active="history" onRefresh={handleRefresh} refreshing={loading} />
 
-      {/* Main Content */}
       <main className="container mx-auto px-4 sm:px-6 py-6 space-y-6">
         {/* Statistics */}
         <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 animate-fade-in">

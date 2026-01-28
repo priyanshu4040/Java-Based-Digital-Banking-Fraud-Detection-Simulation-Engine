@@ -14,13 +14,19 @@ public class TransactionService {
     private final TransactionRepository repository;
     private final MlFraudClient mlFraudClient;
     private final MlPayloadMapper mlPayloadMapper;
+    private final EmailService emailService;
+    private final AccountStatusService accountStatusService;
 
     public TransactionService(TransactionRepository repository,
             MlFraudClient mlFraudClient,
-            MlPayloadMapper mlPayloadMapper) {
+            MlPayloadMapper mlPayloadMapper,
+            EmailService emailService,
+            AccountStatusService accountStatusService) {
         this.repository = repository;
         this.mlFraudClient = mlFraudClient;
         this.mlPayloadMapper = mlPayloadMapper;
+        this.emailService = emailService;
+        this.accountStatusService = accountStatusService;
     }
 
     public void processTransaction(Transaction txn) {
@@ -28,6 +34,17 @@ public class TransactionService {
         // Set timestamp if not provided
         if (txn.getTimestamp() == null) {
             txn.setTimestamp(java.time.LocalDateTime.now());
+        }
+
+        /* ================= ACCOUNT STATUS CHECK ================= */
+
+        // Check if sender account is blocked
+        if (accountStatusService.isAccountBlocked(txn.getSenderAccount())) {
+            txn.setStatus("FAILED");
+            txn.setFraudFlag(0);
+            txn.setFraudReason("Account blocked due to multiple failed transactions");
+            repository.insertTransaction(txn);
+            return; // Stop processing immediately
         }
 
         /* ================= HARD FAIL RULES ================= */
@@ -109,7 +126,7 @@ public class TransactionService {
         txn.setMlScore(mlScore);
 
         // ML can only UPGRADE risk (never downgrade)
-        if (mlScore >= 0.8 && !"FAILED".equals(txn.getStatus())) {
+        if (mlScore >= 0.7 && !"FAILED".equals(txn.getStatus())) {
             txn.setStatus("FAILED");
             txn.setFraudFlag(1);
 
@@ -126,6 +143,27 @@ public class TransactionService {
         /* ================= SAVE ================= */
 
         repository.insertTransaction(txn);
+
+        /* ================= EMAIL ALERT (if fraud detected) ================= */
+
+        // Send email alert if fraud is detected (fraudFlag = 1)
+        if (txn.getFraudFlag() != null && txn.getFraudFlag() == 1) {
+            try {
+                emailService.sendFraudAlert(txn);
+            } catch (Exception e) {
+                // Log error but don't fail transaction processing
+                org.slf4j.LoggerFactory.getLogger(TransactionService.class)
+                        .error("Failed to send fraud alert email: {}", e.getMessage());
+            }
+        }
+
+        /* ================= ACCOUNT STATUS UPDATE ================= */
+
+        // Update account status based on transaction result
+        boolean transactionFailed = "FAILED".equals(txn.getStatus());
+        accountStatusService.updateAccountStatusAfterTransaction(
+                txn.getSenderAccount(),
+                transactionFailed);
     }
 
     /* ================= READ APIs ================= */

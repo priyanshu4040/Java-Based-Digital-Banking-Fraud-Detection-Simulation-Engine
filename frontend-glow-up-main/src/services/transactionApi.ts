@@ -3,8 +3,26 @@
  * Handles all API calls to the backend Spring Boot API
  */
 
+import { getAuthToken } from './authApi';
+
 // Base URL for the backend API
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+
+/**
+ * Get headers with authentication token
+ */
+const getAuthHeaders = (): HeadersInit => {
+  const token = getAuthToken();
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  return headers;
+};
 
 export interface Transaction {
   transactionId: string;
@@ -38,9 +56,7 @@ export const createTransaction = async (transaction: Omit<Transaction, 'status' 
   try {
     const response = await fetch(`${API_BASE_URL}/api/transactions`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify(transaction),
     });
 
@@ -101,7 +117,9 @@ export const createTransaction = async (transaction: Omit<Transaction, 'status' 
  */
 export const getAllTransactions = async (): Promise<ApiResponse<Transaction[]>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/transactions`);
+    const response = await fetch(`${API_BASE_URL}/api/transactions`, {
+      headers: getAuthHeaders(),
+    });
 
     if (!response.ok) {
       return {
@@ -128,7 +146,9 @@ export const getAllTransactions = async (): Promise<ApiResponse<Transaction[]>> 
  */
 export const getFraudTransactions = async (): Promise<ApiResponse<Transaction[]>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/fraud`);
+    const response = await fetch(`${API_BASE_URL}/api/transactions/fraud`, {
+      headers: getAuthHeaders(),
+    });
 
     if (!response.ok) {
       return {
@@ -155,7 +175,9 @@ export const getFraudTransactions = async (): Promise<ApiResponse<Transaction[]>
  */
 export const getSuccessTransactions = async (): Promise<ApiResponse<Transaction[]>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/success`);
+    const response = await fetch(`${API_BASE_URL}/api/transactions/success`, {
+      headers: getAuthHeaders(),
+    });
 
     if (!response.ok) {
       return {
@@ -182,7 +204,9 @@ export const getSuccessTransactions = async (): Promise<ApiResponse<Transaction[
  */
 export const getFailedTransactions = async (): Promise<ApiResponse<Transaction[]>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/failed`);
+    const response = await fetch(`${API_BASE_URL}/api/transactions/failed`, {
+      headers: getAuthHeaders(),
+    });
 
     if (!response.ok) {
       return {
@@ -209,7 +233,9 @@ export const getFailedTransactions = async (): Promise<ApiResponse<Transaction[]
  */
 export const getPendingTransactions = async (): Promise<ApiResponse<Transaction[]>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/transactions/pending`);
+    const response = await fetch(`${API_BASE_URL}/api/transactions/pending`, {
+      headers: getAuthHeaders(),
+    });
 
     if (!response.ok) {
       return {
@@ -265,7 +291,9 @@ export interface LocationWiseFraud {
  */
 export const getDashboardSummary = async (): Promise<ApiResponse<DashboardSummary>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/dashboard/summary`);
+    const response = await fetch(`${API_BASE_URL}/api/dashboard/summary`, {
+      headers: getAuthHeaders(),
+    });
 
     if (!response.ok) {
       return {
@@ -292,7 +320,9 @@ export const getDashboardSummary = async (): Promise<ApiResponse<DashboardSummar
  */
 export const getFraudTrends = async (): Promise<ApiResponse<FraudTrend[]>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/dashboard/fraud-trends`);
+    const response = await fetch(`${API_BASE_URL}/api/dashboard/fraud-trends`, {
+      headers: getAuthHeaders(),
+    });
 
     if (!response.ok) {
       return {
@@ -319,7 +349,9 @@ export const getFraudTrends = async (): Promise<ApiResponse<FraudTrend[]>> => {
  */
 export const getChannelWiseFraud = async (): Promise<ApiResponse<ChannelWiseFraud[]>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/dashboard/channel-wise`);
+    const response = await fetch(`${API_BASE_URL}/api/dashboard/channel-wise`, {
+      headers: getAuthHeaders(),
+    });
 
     if (!response.ok) {
       return {
@@ -346,7 +378,9 @@ export const getChannelWiseFraud = async (): Promise<ApiResponse<ChannelWiseFrau
  */
 export const getLocationWiseFraud = async (): Promise<ApiResponse<LocationWiseFraud[]>> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/dashboard/location-wise`);
+    const response = await fetch(`${API_BASE_URL}/api/dashboard/location-wise`, {
+      headers: getAuthHeaders(),
+    });
 
     if (!response.ok) {
       return {
@@ -364,6 +398,112 @@ export const getLocationWiseFraud = async (): Promise<ApiResponse<LocationWiseFr
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to fetch location-wise fraud data',
+    };
+  }
+};
+
+/* ================= ACCOUNT STATUS APIs ================= */
+
+export interface AccountStatus {
+  accountNumber: string;
+  status: 'ACTIVE' | 'BLOCKED';
+  blockedAt?: string;
+  unblockAt?: string;
+  failedCountLast5Min?: number;
+}
+
+export interface BlockedAccount extends AccountStatus {
+  accountId?: string;
+  accountHolderName?: string;
+  blockReason?: string;
+}
+
+export interface BlockedAccountsResponse {
+  count: number;
+  accounts: BlockedAccount[];
+}
+
+/**
+ * Get account status by account number
+ */
+export const getAccountStatus = async (accountNumber: string): Promise<ApiResponse<AccountStatus>> => {
+  try {
+    // Check if user is authenticated before making the request
+    const token = getAuthToken();
+    if (!token) {
+      return {
+        success: false,
+        error: 'Not authenticated',
+      };
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/accounts/status/${encodeURIComponent(accountNumber)}`, {
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      // Handle 404 Not Found - account doesn't exist yet, default to ACTIVE
+      if (response.status === 404) {
+        return {
+          success: true,
+          data: {
+            accountNumber: accountNumber,
+            status: 'ACTIVE',
+            failedCountLast5Min: 0
+          }
+        };
+      }
+      // Handle 403 Forbidden (authentication/authorization issue)
+      if (response.status === 403) {
+        return {
+          success: false,
+          error: 'HTTP 403: Forbidden - Authentication required',
+        };
+      }
+      return {
+        success: false,
+        error: `HTTP ${response.status}: ${response.statusText}`,
+      };
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      data: data,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch account status',
+    };
+  }
+};
+
+/**
+ * Get all blocked accounts
+ */
+export const getBlockedAccounts = async (): Promise<ApiResponse<BlockedAccountsResponse>> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/accounts/blocked`, {
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: `HTTP ${response.status}: ${response.statusText}`,
+      };
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      data: data,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch blocked accounts',
     };
   }
 };

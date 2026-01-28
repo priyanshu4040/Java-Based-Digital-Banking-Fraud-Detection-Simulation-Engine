@@ -179,7 +179,7 @@ const TransactionTable = ({ transactions, loading, error }: TransactionTableProp
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto max-h-[420px] overflow-y-auto pr-1">
         <table className="data-table">
           <thead>
             <tr>

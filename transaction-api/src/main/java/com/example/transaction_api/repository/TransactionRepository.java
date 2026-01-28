@@ -145,7 +145,7 @@ public class TransactionRepository {
         FROM TRANSACTIONS
         WHERE SENDER_ACCOUNT = ?
         AND STATUS = 'FAILED'
-        AND TIMESTAMP_VAL >= SYSDATE - (10 / (24 * 60))
+        AND TIMESTAMP_VAL >= SYSDATE - (5 / (24 * 60))
     """;
 
         return jdbc.queryForObject(sql, Integer.class, senderAccount);

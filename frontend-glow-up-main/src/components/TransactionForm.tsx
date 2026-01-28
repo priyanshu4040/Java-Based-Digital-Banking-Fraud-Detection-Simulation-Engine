@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,8 +9,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Check, X, Loader2, Send, RotateCcw } from "lucide-react";
+import { Check, X, Loader2, Send, RotateCcw, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import AccountStatusBadge from "./AccountStatusBadge";
+import { getAccountStatus, type AccountStatus } from "@/services/transactionApi";
+import { isAuthenticated } from "@/services/authApi";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface TransactionFormProps {
   onTransactionSubmitted?: () => void;
@@ -45,9 +49,69 @@ const transactionTypes = ["TRANSFER", "WITHDRAW", "DEPOSIT", "PAYMENT"];
 const channels = ["MOBILE", "ATM", "CARD", "NETBANKING"];
 
 const TransactionForm = ({ onTransactionSubmitted }: TransactionFormProps) => {
+  const { authenticated } = useAuth();
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: string; text: string }>({ type: "", text: "" });
+  const [accountStatus, setAccountStatus] = useState<AccountStatus | null>(null);
+  const [checkingAccountStatus, setCheckingAccountStatus] = useState(false);
+  const accountCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Check account status when sender account changes
+  useEffect(() => {
+    // Clear existing timeout
+    if (accountCheckTimeoutRef.current) {
+      clearTimeout(accountCheckTimeoutRef.current);
+    }
+
+    // Reset status if sender account is cleared
+    if (!formData.senderAccount || formData.senderAccount.trim() === "") {
+      setAccountStatus(null);
+      setCheckingAccountStatus(false);
+      return;
+    }
+
+    // Set default ACTIVE status immediately (optimistic UI)
+    // This ensures badge shows right away
+    setAccountStatus({
+      accountNumber: formData.senderAccount.trim(),
+      status: 'ACTIVE',
+      failedCountLast5Min: 0
+    });
+
+    // Only check account status if user is authenticated
+    if (!authenticated || !isAuthenticated()) {
+      // Keep default ACTIVE status even if not authenticated
+      return;
+    }
+
+    // Debounce account status check (wait 500ms after user stops typing)
+    accountCheckTimeoutRef.current = setTimeout(async () => {
+      setCheckingAccountStatus(true);
+      try {
+        const result = await getAccountStatus(formData.senderAccount.trim());
+        if (result.success && result.data) {
+          console.log('Account status fetched:', result.data);
+          setAccountStatus(result.data);
+        } else {
+          // Log error for debugging
+          console.warn('Failed to fetch account status:', result.error);
+          // Keep default ACTIVE status on error
+        }
+      } catch (error) {
+        console.error('Error fetching account status:', error);
+        // Keep default ACTIVE status on error
+      } finally {
+        setCheckingAccountStatus(false);
+      }
+    }, 500);
+
+    return () => {
+      if (accountCheckTimeoutRef.current) {
+        clearTimeout(accountCheckTimeoutRef.current);
+      }
+    };
+  }, [formData.senderAccount, authenticated]);
 
   const handleChange = (field: keyof FormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -64,6 +128,16 @@ const TransactionForm = ({ onTransactionSubmitted }: TransactionFormProps) => {
     // Validate required fields
     if (!formData.transactionId || !formData.amount || !formData.senderAccount || !formData.receiverAccount) {
       setMessage({ type: "error", text: "Please fill in all required fields" });
+      setLoading(false);
+      return;
+    }
+
+    // Check if account is blocked
+    if (accountStatus?.status === 'BLOCKED') {
+      setMessage({
+        type: "error",
+        text: "This account is blocked. Transactions cannot be processed until the account is unblocked."
+      });
       setLoading(false);
       return;
     }
@@ -234,17 +308,59 @@ const TransactionForm = ({ onTransactionSubmitted }: TransactionFormProps) => {
           {/* Row 3: Sender & Receiver Accounts */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="space-y-2">
-              <Label htmlFor="senderAccount" className="form-label">
-                Sender Account <span className="form-required">*</span>
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="senderAccount" className="form-label">
+                  Sender Account <span className="form-required">*</span>
+                </Label>
+                {checkingAccountStatus && (
+                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                )}
+              </div>
               <Input
                 id="senderAccount"
                 value={formData.senderAccount}
                 onChange={(e) => handleChange("senderAccount", e.target.value)}
                 placeholder="e.g., AC12345678"
-                className="form-input"
+                className={cn(
+                  "form-input",
+                  accountStatus?.status === 'BLOCKED' && "border-destructive focus-visible:ring-destructive"
+                )}
                 required
               />
+              {formData.senderAccount.trim() && (
+                <div className="mt-2">
+                  {checkingAccountStatus ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Checking account status...</span>
+                    </div>
+                  ) : accountStatus ? (
+                    <>
+                      <AccountStatusBadge
+                        status={accountStatus.status}
+                        unblockAt={accountStatus.unblockAt}
+                      />
+                      {accountStatus.failedCountLast5Min !== undefined && accountStatus.failedCountLast5Min > 0 && (
+                        <p className="text-xs text-muted-foreground mt-1.5">
+                          Failed attempts (last 5 min): {accountStatus.failedCountLast5Min}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-xs text-muted-foreground">
+                      Enter account number to check status
+                    </div>
+                  )}
+                </div>
+              )}
+              {accountStatus?.status === 'BLOCKED' && (
+                <div className="flex items-start gap-2 mt-2 p-2 bg-destructive/10 border border-destructive/20 rounded-md">
+                  <AlertCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-destructive">
+                    This account is blocked. Transactions cannot be processed until {accountStatus.unblockAt ? new Date(accountStatus.unblockAt).toLocaleString() : 'the block period expires'}.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -314,7 +430,7 @@ const TransactionForm = ({ onTransactionSubmitted }: TransactionFormProps) => {
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <Button
               type="submit"
-              disabled={loading}
+              disabled={loading || accountStatus?.status === 'BLOCKED'}
               className="flex-1 sm:flex-none bg-accent hover:bg-accent/90 text-accent-foreground font-semibold px-6"
             >
               {loading ? (
